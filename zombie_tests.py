@@ -1,6 +1,6 @@
 import sys
 import requests
-import logging
+# import logging
 import time
 import load_api_key
 import re
@@ -17,7 +17,10 @@ auth = load_api_key.get_api_key()
 
 class GUI(QWidget):
     def __init__(self):
+        # Necessary to use PyQt:
         super().__init__()
+
+        # Elements are added to vertical layout, except for elements added to the embedded child horizontal layouts:
         self.y_layout = QVBoxLayout()                       # Parent (vertical) layout
         self.x_layout = QHBoxLayout()                       # Child (horizontal) layout
         self.x2_layout = QHBoxLayout()                      # 2nd child (horizontal) layout
@@ -25,45 +28,57 @@ class GUI(QWidget):
         self.intro_label = QLabel("Welcome to the Zombie Killer. I will kill any test that (a) has an 'updated' value "
                                   "that is one week old or older and (b) is still in a running status.")
         self.workspace_prompt = QLabel("What workspace ID do you think has zombies?")
-        self.workspace_input = QLineEdit()
+        self.workspace_input = QLineEdit()                  # User inputs workspace ID here
         self.button = QPushButton("Submit")
-        self.button.clicked.connect(self.get_workspace)
-        self.test_response = QLabel("Standing by...")
+        self.button.clicked.connect(self.get_workspace)     # Clicking "submit" calls get_workspace()
+        self.test_response = QLabel()
 
-        self.master_ids = QLabel("Master count standing by...")
-        self.masters_w_session_ids = QLabel("Sessions count standing by...")
-        self.orphan_session_ids = QLabel("Orphan sessions count standing by...")
-        self.total_zombies = QLabel("Total calculation standing by...")
+        # These group of labels only appear after find_zombies() verifies there are zombies:
+        self.master_ids = QLabel()
+        self.masters_w_session_ids = QLabel()
+        self.orphan_session_ids = QLabel()
+        self.total_zombies = QLabel()
 
+        # Point of no return before killing zombies:
         self.continue_prompt = QLabel("Shall I kill all these zombies?")
-        self.yes_button = QPushButton("Yes")                # Pass our zombie lists to the next function.
-        self.yes_button.clicked.connect(self.kill_zombies)
+        self.yes_button = QPushButton("Yes")
+        self.yes_button.clicked.connect(self.kill_zombies)  # Execute kill_zombies() upon click
         self.no_button = QPushButton("No")
-        self.no_button.clicked.connect(self.exit)
-        self.goodbye = QLabel("Very well then.  Goodbye.")
+        self.no_button.clicked.connect(self.exit)           # Cancel and exit upon click
+        # self.goodbye = QLabel("Very well then.  Goodbye.")
 
-        self.killed = QLabel("Kill count standing by...")
-        self.immortal_mstrs = QLabel("Immortal masters cou nt standing by...")
-        self.immortal_sessns = QLabel("Immortal orphan sessions count standing by...")
+        # Results of kill_zombies()
+        self.killed = QLabel()
+        self.immortal_mstrs = QLabel()
+        self.immortal_sessns = QLabel()
 
-        # These three variables store already-parsed JSON response data as Python arrays.
+        # These three variables store already-parsed JSON response data as Python arrays:
         self.my_zombie_masters = []  # To be killed by Master ID.
         self.my_zombie_sessions = []  # To be ignored; will be killed by Master ID.
         self.my_zombie_orphan_sessions = []  # To be killed by Session ID.
 
+        # Instantiate the UI
         self.create_ui()
         self.setWindowTitle("BZM Zombie Killer 2.0")
 
     def create_ui(self):
+        # With the layouts defined, add widgets to each layout:
         self.y_layout.addWidget(self.intro_label)
         self.y_layout.addLayout(self.x_layout)                # child x_layout is nested within parent y_layout
 
+        # This horizontal layout is embedded within the vertical layout:
         self.x_layout.addWidget(self.workspace_prompt)
         self.x_layout.addWidget(self.workspace_input)
         self.x_layout.addWidget(self.button)
 
+        # Add the horizontal layout to the vertical layout:
         self.setLayout(self.y_layout)
+
+        # Make UI actually visible:
         self.show()
+
+        # Note: Additional layouts/widgets will be added by later functions, but this function creates the initial UI
+        # that will always be seen by the user.
 
     def get_workspace(self):
         # get_workspace modified from Travis's bulk_processes.py
@@ -93,13 +108,14 @@ class GUI(QWidget):
 
         # parse contents of 'r' as JSON then assign to 'response':
         response = r.json()
-        if r.status_code == 200:  # verify 'r' contains a status_code of 200 or exit
+
+        # Verify 'r' contains a status_code of 200 or exit
+        if r.status_code == 200:
             validated_output = "Time to kill some zombies for ID # " + trim_workspace_id + "!"
             self.y_layout.addWidget(self.test_response)
             self.test_response.setText(validated_output)
             # logging.debug(response)
-            self.find_zombies(response)  # 200 verified, so now pass response into next function
-
+            self.find_zombies(response)  # 200 verified, so now pass response into next function\
         else:
             # logging.error(response)
             validated_output = "My API call failed. Check log for details. You have been eaten by a zombie."
@@ -127,6 +143,7 @@ class GUI(QWidget):
                     my_zom_orphan = {result['id']}
                     self.my_zombie_orphan_sessions.append(my_zom_orphan)
 
+        # These variables store counts of their namesake variables:
         total_zombie_masters = len(self.my_zombie_masters)
         total_zombie_sessions = len(self.my_zombie_sessions)
         total_zombie_orphans = len(self.my_zombie_orphan_sessions)
@@ -134,6 +151,7 @@ class GUI(QWidget):
         # Our total must count Master IDs and add ONLY those Session IDs not associated with Master IDs.
         total_zombies = len(self.my_zombie_masters) + len(self.my_zombie_orphan_sessions)
 
+        # UI will now expand and show new information, a new prompt, and new button:
         self.master_ids.setText("This many zombies counted by Master ID: " + str(total_zombie_masters))
         self.masters_w_session_ids.setText("And those Master IDs include this many Session IDs: " +
                                            str(total_zombie_sessions))
@@ -141,15 +159,19 @@ class GUI(QWidget):
                                         str(total_zombie_orphans))
         self.total_zombies.setText(str(total_zombies) + " zombies in total.")
 
+        # Add new widgets, expanding parent vertical layout:
         self.y_layout.addWidget(self.master_ids)
         self.y_layout.addWidget(self.masters_w_session_ids)
         self.y_layout.addWidget(self.orphan_session_ids)
         self.y_layout.addWidget(self.total_zombies)
         # The final prompt before the point of no return:
         self.y_layout.addWidget(self.continue_prompt)
+
+        # Need the new buttons side-by-side, so added a 2nd horizontal layout to appear at the bottom:
         self.x2_layout.addWidget(self.yes_button)
         self.x2_layout.addWidget(self.no_button)
 
+        # Add 2nd child layout to parent layout:
         self.y_layout.addLayout(self.x2_layout)
         self.setLayout(self.x2_layout)
 
@@ -201,17 +223,19 @@ class GUI(QWidget):
                       ".  See logs for details.")
             i += 1
 
+        # If master and/or orphan sessions killed, add display of counts to the UI, else do not appear:
         if immortal_masters > 0:
             self.immortal_mstrs.setText(str(immortal_masters) + " masters could not be killed.")
             self.y_layout.addWidget(self.immortal_mstrs)
         if immortal_orphans > 0:
             self.immortal_sessns.setText(str(immortal_orphans) + " orphan sessions could not be killed.")
             self.y_layout.addWidget(self.immortal_sessns)
+
+        # Always display how many total zombies were killed:
         self.killed.setText(str(kill_count) + " zombies killed!")
         self.y_layout.addWidget(self.killed)
 
     def exit(self):
-        self.y_layout.addWidget(self.goodbye)
         exit(2)
 
 
