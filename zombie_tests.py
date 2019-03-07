@@ -47,10 +47,39 @@ class ZombieTests:
 
         if workspace_id.isdigit():                              # verify user actually entered a number
             self.get_active_sessions(workspace_id)              # pass workspace choice on to next function
+            self.verify_workspace(workspace_id)
 
         else:
             self.valid = 0
             self.validated_output = "You did not input a valid number!"
+
+    def verify_workspace(self, workspace_id):
+        # This function add a safety check by verifying both the name of the workspace and the name of the account who
+        # owns it, then prompts the user to decide if they wish to continue or not.
+
+        # Perform a GET to retrieve workspace details and save response to 'r':
+        r = requests.get(self.base_url + 'workspaces/' + workspace_id, auth=self.auth)
+
+        # Parse contents of 'r' as JSON then assign to 'response':
+        response = r.json()
+        result = response['result']
+
+        # Strip string of JSON formatting data like quotes and brackets so we just have workspace name itself:
+        workspace_name = re.sub('[\'\{\}\']+', '', str({result['name']}))
+
+        # Retrieve the Account ID and strip it of JSON formatting as well:
+        account_id = re.sub('[\{\}]+', '', str({result['accountId']}))
+
+        # Use the Account ID for a new GET used to retrieve account details - same process as before:
+        r2 = requests.get(self.base_url + 'accounts/' + account_id, auth=self.auth)
+        response2 = r2.json()
+        result2 = response2['result']
+
+        # Retrieve the Account Name and strip it of JSON formatting:
+        account_name = re.sub('[\'\{\}\']+', '', str({result2['name']}))
+
+        self.validated_output = "That's the workspace named \"" + workspace_name + "\" and it belongs to our customer "\
+                                + account_name + "."
 
     def get_active_sessions(self, workspace_id):
         # This function finds all tests currently running in the workspace chosen.
@@ -149,4 +178,3 @@ class ZombieTests:
                 print("Couldn't kill Session ID " + re.sub('[\{\}\']+', '', str(self.my_zombie_orphan_sessions[i])) +
                       ".  See logs for details.")
             i += 1
-
